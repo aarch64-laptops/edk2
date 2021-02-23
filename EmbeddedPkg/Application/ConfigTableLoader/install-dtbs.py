@@ -43,6 +43,8 @@ class Dtb(object):
 # See https://blogs.gnome.org/hughsie/2017/04/25/reverse-engineering-computerhardwareids-exe-with-winedbg/
 dtbs = [
     Dtb('qcom/sdm850-lenovo-yoga-c630.dtb', 'LENOVO&81JL'),   # Manufacturer&ProductName => 'HardwareID-9'
+    # At least one c630 in the wild has 'INVALID' for the product name, so lets also try 'Family'
+    Dtb('qcom/sdm850-lenovo-yoga-c630.dtb', 'LENOVO&Yoga C630-13Q50 Laptop'),  # Manufacturer&Family => 'HardwareID-11'
 ]
 
 src = sys.argv[1]
