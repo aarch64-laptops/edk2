@@ -394,6 +394,32 @@ LoadNextStage (
   return Status;
 }
 
+typedef struct {
+  UINT16  Version;
+  UINT16  Length;
+  UINT32  RuntimeServicesSupported;
+} EFI_RT_PROPERTIES_TABLE;
+
+STATIC
+VOID
+InstallRtPropertiesTable (
+  VOID
+  )
+{
+  EFI_RT_PROPERTIES_TABLE *Table;
+  EFI_STATUS              Status;
+
+  Table = AllocateRuntimePool (sizeof *Table);
+  ASSERT (Table != NULL);
+
+  Table->Version                  = 0x1;
+  Table->Length                   = sizeof *Table;
+  Table->RuntimeServicesSupported = 0;  // all unsupported
+
+  Status = gBS->InstallConfigurationTable (&gEfiRtPropertiesTableGuid, Table);
+  ASSERT_EFI_ERROR (Status);
+}
+
 /**
   The user Entry Point for Application. The user code starts with this function
   as the real entry point for the application.
@@ -413,6 +439,8 @@ UefiMain (
   )
 {
   EFI_STATUS Status = EFI_LOAD_ERROR;
+
+  InstallRtPropertiesTable ();
 
   if (GetSmbiosTable()) {
     /* already got SMBIOS tables configured, so just go: */

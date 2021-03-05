@@ -55,6 +55,7 @@
   gEfiAcpi20TableGuid
   gEfiFileInfoGuid
   gEfiGlobalVariableGuid
+  gEfiRtPropertiesTableGuid
   gFdtTableGuid
 
 [Pcd]
