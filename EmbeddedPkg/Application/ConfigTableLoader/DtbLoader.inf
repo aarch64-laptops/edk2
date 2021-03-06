@@ -17,7 +17,7 @@
   INF_VERSION                    = 0x0001001b
   BASE_NAME                      = DtbLoader
   FILE_GUID                      = 45eaa15e-0160-4dc0-b288-c961df9c6265
-  MODULE_TYPE                    = UEFI_DRIVER
+  MODULE_TYPE                    = UEFI_APPLICATION
   VERSION_STRING                 = 1.0
   ENTRY_POINT                    = UefiMain
 
@@ -36,7 +36,7 @@
   BaseLib
   BaseCryptLib
   FdtLib
-  UefiDriverEntryPoint
+  UefiApplicationEntryPoint
   UefiBootServicesTableLib
   UefiRuntimeServicesTableLib
   UefiLib

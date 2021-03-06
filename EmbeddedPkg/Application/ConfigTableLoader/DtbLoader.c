@@ -11,7 +11,9 @@
 
 #include <libfdt.h>
 #include <Uefi.h>
+#include <Library/BaseLib.h>
 #include <Library/DebugLib.h>
+#include <Library/DevicePathLib.h>
 #include <Library/MemoryAllocationLib.h>
 #include <Library/UefiLib.h>
 #include <Library/UefiApplicationEntryPoint.h>
@@ -32,9 +34,6 @@ STATIC struct {
   UINT32 TotalSize;
   VOID   *Data;
 } mBlobInfo;
-
-STATIC EFI_EVENT mSmbiosTableEvent;
-STATIC EFI_EVENT mSmbios3TableEvent;
 
 #define FDT_ADDITIONAL_SIZE 0x400
 
@@ -272,25 +271,127 @@ LoadAndRegisterDtb (VOID)
   return Status;
 }
 
+#define NEXT_STAGE L"grubaa64.efi"
+
 STATIC
-VOID
-OnSmbiosTablesRegistered (
-  IN EFI_EVENT  Event,
-  IN VOID       *Context
+CHAR16 *
+GetNextStagePath (
+  IN EFI_LOADED_IMAGE_PROTOCOL *LoadedImage
   )
 {
-  EFI_STATUS Status;
+  EFI_DEVICE_PATH_PROTOCOL        *DevPathNode;
+  CHAR16                          *DevPathString;
+  CHAR16                          *NextStagePath;
+  CHAR16                          *Pos;
+  UINTN                           Len;
 
-  Dbg (L"OnSmbiosTablesRegistered\n");
-
-  if (GetSmbiosTable()) {
-    Status = LoadAndRegisterDtb();
-    Print (L"%a:%d: Status = %x\n", __func__, __LINE__, Status);
-    if (Status == EFI_SUCCESS) {
-      gBS->CloseEvent(mSmbiosTableEvent);
-      gBS->CloseEvent(mSmbios3TableEvent);
-    }
+  DevPathNode = LoadedImage->FilePath;
+  if (!DevPathNode) {
+    Dbg (L"No FilePath!\n");
+    return NULL;
   }
+
+  /*
+   * We are looking for a file in the same directory as ourselves, with
+   * the name NEXT_STAGE (ie. "grubaa64.efi", etc)...
+   *
+   * TODO is LoadedImage->FilePath ever *not* a filepath node?  If not we
+   * can skip the loop nonsense.
+   */
+  while (!IsDevicePathEnd (DevPathNode)) {
+    DevPathString = ConvertDevicePathToText (DevPathNode, TRUE, FALSE);
+
+    Dbg (L"DevPathString=%s\n", DevPathString);
+    FreePool (DevPathString);
+
+    if ((DevPathNode->Type == MEDIA_DEVICE_PATH) && (DevPathNode->SubType == MEDIA_FILEPATH_DP)) {
+      break;
+    }
+
+    DevPathNode = NextDevicePathNode (DevPathNode);
+  }
+
+  if (IsDevicePathEnd (DevPathNode)) {
+    Dbg (L"No FilePath (reached the end)!\n");
+    return NULL;
+  }
+
+  DevPathString = ConvertDevicePathToText (DevPathNode, TRUE, FALSE);
+  Len = 1 + StrLen (DevPathString) + StrLen (NEXT_STAGE);
+  NextStagePath = AllocatePool (Len * sizeof (CHAR16));
+  StrCpyS (NextStagePath, Len, DevPathString);
+  FreePool (DevPathString);
+
+  Pos = StrRChr (NextStagePath, L'\\');
+  if (!Pos) {
+    Pos = NextStagePath;
+  } else {
+    ++Pos;
+  }
+
+  StrCpyS (Pos, 1 + StrLen (NEXT_STAGE), NEXT_STAGE);
+
+  return NextStagePath;
+}
+
+STATIC
+EFI_STATUS
+LoadNextStage (
+  IN EFI_HANDLE ImageHandle
+  )
+{
+  EFI_DEVICE_PATH_PROTOCOL        *NewImagePath;
+  EFI_LOADED_IMAGE_PROTOCOL       *LoadedImage;
+  EFI_SIMPLE_FILE_SYSTEM_PROTOCOL *FileSystem;
+  EFI_HANDLE                      NewImageHandle;
+  CHAR16                          *NextStagePath;
+  EFI_STATUS                      Status;
+
+  Dbg (L"LoadNextStage\n");
+
+  Status = GetLoadedImageProtocol (&LoadedImage);
+  if (EFI_ERROR (Status)) {
+    return Status;
+  }
+
+  Status = GetLoadedImageFileSystem (LoadedImage, &FileSystem);
+  if (EFI_ERROR (Status)) {
+    return Status;
+  }
+
+  NextStagePath = GetNextStagePath (LoadedImage);
+  Dbg (L"Got NextStagePath=%s\n", NextStagePath);
+  if (!NextStagePath) {
+    Status = EFI_NO_MEDIA;
+    goto Cleanup;
+  }
+
+  NewImagePath = FileDevicePath (LoadedImage->DeviceHandle, NextStagePath);
+
+  Status = gBS->LoadImage (
+      FALSE,
+      ImageHandle,
+      NewImagePath,
+      NULL,
+      0,
+      &NewImageHandle);
+  if (EFI_ERROR (Status)) {
+    Print (L"Failed to load %s\n", NextStagePath);
+    goto Cleanup;
+  }
+
+  Status = gBS->StartImage (
+      NewImageHandle,
+      0,
+      NULL);
+  if (EFI_ERROR (Status)) {
+    Print (L"Failed to start %s\n", NextStagePath);
+    goto Cleanup;
+  }
+
+ Cleanup:
+  // TODO
+  return Status;
 }
 
 /**
@@ -311,27 +412,17 @@ UefiMain (
   IN EFI_SYSTEM_TABLE  *SystemTable
   )
 {
-  EFI_STATUS Status;
+  EFI_STATUS Status = EFI_LOAD_ERROR;
 
   if (GetSmbiosTable()) {
     /* already got SMBIOS tables configured, so just go: */
-    return LoadAndRegisterDtb();
+    Status = LoadAndRegisterDtb();
+    if (EFI_ERROR (Status)) {
+      Dbg (L"Could not load DTB! (%x)\n", Status);
+      return Status;
+    }
   }
 
-  /*
-   * SMBIOS config tables not ready yet, so hook in notifier to do our work
-   * later once they are registered:
-   */
-  Status = gBS->CreateEventEx (EVT_NOTIFY_SIGNAL, TPL_CALLBACK,
-                  OnSmbiosTablesRegistered, NULL, &gEfiSmbios3TableGuid,
-                  &mSmbios3TableEvent);
-  ASSERT_EFI_ERROR (Status);
-
-  Status = gBS->CreateEventEx (EVT_NOTIFY_SIGNAL, TPL_CALLBACK,
-                  OnSmbiosTablesRegistered, NULL, &gEfiSmbiosTableGuid,
-                  &mSmbiosTableEvent);
-  ASSERT_EFI_ERROR (Status);
-
-  return Status;
+  return LoadNextStage (ImageHandle);
 }
 
