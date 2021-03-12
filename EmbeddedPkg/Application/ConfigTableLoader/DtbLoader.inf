@@ -26,6 +26,9 @@
 #
   UEFI_HII_RESOURCE_SECTION      = TRUE
 
+[BuildOptions]
+  RELEASE_*_*_CC_FLAGS  = -DMDEPKG_NDEBUG
+
 [Sources.common]
   CHID.c
   Common.c

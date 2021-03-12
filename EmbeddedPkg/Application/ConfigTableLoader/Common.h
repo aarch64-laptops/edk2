@@ -16,7 +16,11 @@
 
 #include <Guid/FileInfo.h>
 
+#if !defined(MDEPKG_NDEBUG)
 #define Dbg(...) do { Print(__VA_ARGS__); gBS->Stall(100000); } while (0)
+#else
+#define Dbg(...)
+#endif
 
 /**
   Acquires a LOADED_IMAGE_PROTOCOL structure that points to the instance

@@ -87,12 +87,12 @@ RegisterDtBlob (
   mBlobInfo.TotalSize = fdt_totalsize (mBlobInfo.Data);
   gBS->CalculateCrc32 (mBlobInfo.Data, mBlobInfo.TotalSize, &mBlobInfo.Crc32);
 
-  Print (L"DT CRC32: %08x\n", mBlobInfo.Crc32);
-  Print (L"DT TotalSize: %d bytes\n", mBlobInfo.TotalSize);
+  Dbg (L"DT CRC32: %08x\n", mBlobInfo.Crc32);
+  Dbg (L"DT TotalSize: %d bytes\n", mBlobInfo.TotalSize);
 
   Status = gBS->InstallConfigurationTable (&gFdtTableGuid, Blob);
   if (!EFI_ERROR (Status)) {
-    Print (L"DTB installed successfully!\n");
+    Dbg (L"DTB installed successfully!\n");
   }
 
   return Status;
@@ -143,6 +143,7 @@ STATIC
 VOID
 PrintChid (VOID)
 {
+#if !defined(MDEPKG_NDEBUG)
   EFI_STATUS Status;
   EFI_GUID   CHID;
 
@@ -164,6 +165,7 @@ PrintChid (VOID)
   DumpCHID(CHID_11);
   DumpCHID(CHID_13);
   DumpCHID(CHID_14);
+#endif
 }
 /////////////////////////////////////////////////////////////////
 

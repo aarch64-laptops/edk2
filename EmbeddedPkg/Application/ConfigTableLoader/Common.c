@@ -124,11 +124,11 @@ ReadFdtImpl (
 
   Status = Root->Open (Root, &File, Path, EFI_FILE_MODE_READ, 0);
   if (EFI_ERROR (Status)) {
-    Print (L"Failed to open '%s'\n", Path);
+    Dbg (L"Failed to open '%s'\n", Path);
     return Status;
   }
 
-  Print (L"File '%s' opened successfully!\n", Path);
+  Dbg (L"File '%s' opened successfully!\n", Path);
   BufferSize = 0;
   Status = File->GetInfo (File, &gEfiFileInfoGuid, &BufferSize, NULL);
 
@@ -139,7 +139,7 @@ ReadFdtImpl (
   }
 
   Status = File->GetInfo (File, &gEfiFileInfoGuid, &BufferSize, FileInfo);
-  Print (L"File size: %d bytes\n", FileInfo->FileSize);
+  Dbg (L"File size: %d bytes\n", FileInfo->FileSize);
 
   // Don't bother loading the file if it's smaller than the DT header
   if (FileInfo->FileSize < sizeof (struct fdt_header)) {

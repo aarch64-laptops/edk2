@@ -53,12 +53,12 @@ GetSmbiosTable (VOID)
 
   Status = EfiGetSystemConfigurationTable (&gEfiSmbios3TableGuid, (VOID**)&Smbios64BitTable);
   if (Smbios64BitTable) {
-    Print (L"Got 64b SMBIOS Table\n");
+    Dbg (L"Got 64b SMBIOS Table\n");
     return (VOID *) (UINTN) (Smbios64BitTable->TableAddress);
   } else {
     Status = EfiGetSystemConfigurationTable (&gEfiSmbiosTableGuid, (VOID**)&SmbiosTable);
     if (SmbiosTable) {
-      Print (L"Got SMBIOS Table\n");
+      Dbg (L"Got SMBIOS Table\n");
       return (VOID *) (UINTN) (SmbiosTable->TableAddress);
     } else {
       Print (L"%a:%d: Status = %x\n", __func__, __LINE__, Status);
